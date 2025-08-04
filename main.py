@@ -5,7 +5,7 @@ from sqlalchemy import text
 import time
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+mysqlconnector://root:root123@localhost/parking_slots?ssl_disabled=True'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:password123@localhost/parking_slots?ssl_disabled=True'
 db = SQLAlchemy(app)
 
 # MySQL table
