@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Live User Tracking Map</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.css" />
+  <style>
+    #map {
+      height: 100vh;
+      width: 100%;
+    }
+  </style>
+</head>
+<body>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-routing-machine/dist/leaflet-routing-machine.js"></script>
+
+<script>
+  // ✅ Coordinates passed from Flask
+  const userLat = {{ lat or 12.9250 }};
+  const userLng = {{ lng or 77.5938 }};
+
+  // ✅ Fixed destination (can be hardcoded or dynamic)
+  const destLatLng = [12.9343, 77.6101]; // Example: BTM Layout
+
+  let map = L.map('map').setView([userLat, userLng], 14);
+
+  // ✅ Add tile layer
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '&copy; OpenStreetMap contributors'
+  }).addTo(map);
+
+  const userIcon = L.icon({
+    iconUrl: 'https://maps.google.com/mapfiles/ms/icons/blue-dot.png',
+    iconSize: [32, 32],
+    iconAnchor: [16, 32]
+  });
+
+  const destIcon = L.icon({
+    iconUrl: 'https://maps.google.com/mapfiles/ms/icons/red-dot.png',
+    iconSize: [32, 32],
+    iconAnchor: [16, 32]
+  });
+
+  // ✅ Add user and destination markers
+  const userMarker = L.marker([userLat, userLng], { icon: userIcon }).addTo(map).bindPopup("You are here");
+  const destMarker = L.marker(destLatLng, { icon: destIcon }).addTo(map).bindPopup("Parking Zone");
+
+  // ✅ Show directions with turn-by-turn panel
+  const routingControl = L.Routing.control({
+    waypoints: [
+      L.latLng(userLat, userLng),
+      L.latLng(destLatLng)
+    ],
+    routeWhileDragging: false,
+    draggableWaypoints: false,
+    showAlternatives: false,
+    lineOptions: {
+      styles: [{ color: 'red', weight: 5 }]
+    },
+    createMarker: function() { return null; }, // Don't duplicate markers
+    router: L.Routing.osrmv1({
+      serviceUrl: 'https://router.project-osrm.org/route/v1'
+    }),
+    show: true
+  }).addTo(map);
+</script>
+
+</body>
+</html>
