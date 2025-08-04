@@ -1,8 +1,9 @@
-from flask import Flask, render_template, redirect, request
+from flask import Flask, render_template, redirect, request, jsonify
 from flask_sqlalchemy import SQLAlchemy
 import os
 from sqlalchemy import text
 import time
+import json
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:password123@localhost/parking_slots?ssl_disabled=True'
@@ -22,11 +23,13 @@ class Location_of_slots(db.Model):
 latest_lat = None
 latest_lng = None
 last_updated = None
+gps_status = "No GPS data received"
 
 @app.route('/', methods=['GET', 'POST'])
 def index():
-    global latest_lat, latest_lng
+    global latest_lat, latest_lng, gps_status
 
+    # Use GPS location if available, otherwise use default Bangalore location
     curr_lat = latest_lat if latest_lat else 12.9250
     curr_lng = latest_lng if latest_lng else 77.5938
 
@@ -69,27 +72,62 @@ def index():
             if radius <= 0:
                 return render_template('error.html')
 
-    return render_template('index.html', slots=nearby_slots, lat=curr_lat, lng=curr_lng, radius=radius)
+    return render_template('index.html', slots=nearby_slots, lat=curr_lat, lng=curr_lng, radius=radius, gps_status=gps_status)
 
 @app.route('/update_location', methods=['POST'])
 def update_location():
-    global latest_lat, latest_lng, last_updated
+    global latest_lat, latest_lng, last_updated, gps_status
     try:
-        data = request.get_json()
+        # Handle both JSON and form data
+        if request.is_json:
+            data = request.get_json()
+        else:
+            # Handle form data from ESP32
+            data = request.form.to_dict()
+            # Try to parse JSON from form data
+            if 'data' in data:
+                try:
+                    data = json.loads(data['data'])
+                except:
+                    pass
+
         lat = data.get('latitude')
         lng = data.get('longitude')
 
         if lat is not None and lng is not None:
-            latest_lat = float(lat)
-            latest_lng = float(lng)
-            last_updated = time.strftime('%Y-%m-%d %H:%M:%S')
-            print(f"[✓] Location Updated: Lat={latest_lat}, Lng={latest_lng} at {last_updated}")
-            return {"status": "success", "message": "Location received"}, 200
+            # Validate coordinates
+            lat = float(lat)
+            lng = float(lng)
+            
+            # Basic coordinate validation
+            if -90 <= lat <= 90 and -180 <= lng <= 180:
+                latest_lat = lat
+                latest_lng = lng
+                last_updated = time.strftime('%Y-%m-%d %H:%M:%S')
+                gps_status = f"GPS Active - Last updated: {last_updated}"
+                print(f"[✓] Location Updated: Lat={latest_lat}, Lng={latest_lng} at {last_updated}")
+                return {"status": "success", "message": "Location received", "timestamp": last_updated}, 200
+            else:
+                gps_status = "Invalid GPS coordinates received"
+                return {"status": "error", "message": "Invalid coordinates"}, 400
         else:
+            gps_status = "Missing GPS data"
             return {"status": "error", "message": "Missing lat/lng"}, 400
     except Exception as e:
+        gps_status = f"GPS Error: {str(e)}"
         print(f"Error: {e}")
         return {"status": "error", "message": str(e)}, 400
+
+@app.route('/get_location', methods=['GET'])
+def get_location():
+    """API endpoint to get current GPS location"""
+    global latest_lat, latest_lng, last_updated, gps_status
+    return jsonify({
+        "latitude": latest_lat,
+        "longitude": latest_lng,
+        "last_updated": last_updated,
+        "gps_status": gps_status
+    })
 
 @app.route('/map')
 def map_view():

@@ -28,6 +28,18 @@
     <center>
         {% block corousel %}
         <h1>Find Nearby Parking Zones</h1>
+        
+        <!-- GPS Status Display -->
+        <div style="background-color: #f0f8ff; padding: 10px; margin: 10px; border-radius: 5px; border: 1px solid #ccc;">
+            <h3 style="margin: 5px 0; color: #333;">📍 GPS Status</h3>
+            <p style="margin: 5px 0; font-weight: bold; color: #666;">{{ gps_status }}</p>
+            {% if lat and lng %}
+            <p style="margin: 5px 0; color: #666;">
+                <strong>Current Location:</strong> {{ "%.6f"|format(lat) }}, {{ "%.6f"|format(lng) }}
+            </p>
+            {% endif %}
+        </div>
+
         <form method="POST">
             <label>Radius (in Km):</label>
             <input type="number" step="0.01" name="radius" required>
